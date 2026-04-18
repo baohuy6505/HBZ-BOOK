@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  backend-api:
+    build: ./backend
+    container_name: hbz-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=${DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SERVER_PORT=8080
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/authors?page=0&size=1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - hbz-net
+
+  frontend-web:
+    build: ./frontend
+    container_name: hbz-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend-api:
+        condition: service_healthy
+    environment:
+      - VITE_API_URL=/api
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - hbz-net
+
+networks:
+  hbz-net:
+    name: hbz-network
